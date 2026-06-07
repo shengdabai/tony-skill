@@ -1,0 +1,20 @@
+# 构建过程产物，不进发布仓库
+build-notes/
+.omc/
+*-todo.md
+.pipeline-state.json
+
+# 系统 / 编辑器
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# 机密(防线兜底，本仓库本不应有)
+.env
+.env.*
+*.pem
+*.key
+credentials.*
+secrets.*
