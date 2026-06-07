@@ -6,11 +6,11 @@
 **Distill a person's cognitive OS — not their persona**
 
 一位职业对外汉语教师 × AI 重度 power-user 的思维方式、教学法与方法论，
-打包成一个可在 50+ AI 运行时直接调用的 Agent Skill。
+打包成一个遵循开放 Agent Skills 协议、可在 Claude Code / Cursor / Codex 等兼容运行时调用的 Skill。
 
 A career Chinese-language teacher × heavy AI power-user — his mental models,
-teaching method, and AI methodology — packaged as one Agent Skill you can run
-in Claude Code, Cursor, Codex, and 50+ compatible runtimes.
+teaching method, and AI methodology — packaged as one Agent Skill that runs in
+Claude Code, Cursor, Codex, and any runtime compatible with the open Agent Skills protocol.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](./LICENSE)
 [![Agent Skills](https://img.shields.io/badge/Agent-Skills-6e56cf.svg)](https://github.com/alchaincyf/nuwa-skill)
@@ -22,13 +22,28 @@ in Claude Code, Cursor, Codex, and 50+ compatible runtimes.
 
 ---
 
+## ⚡ 60 秒试一下 · 60-Second Try
+
+```bash
+git clone https://github.com/shengdabai/tony-skill ~/.claude/skills/tony-skill
+```
+
+然后在对话里直接说（任选其一，会自动加载对应模块）：
+Then just say one of these in chat (the matching module auto-loads):
+
+- 🀄 「用思维桥梁教学法教我『把』字句」 / *"Teach me the 把 construction with the thinking-bridge method"*
+- 🤖 「帮我设计一个能自进化的资讯简报系统」 / *"Design a self-evolving news-brief system for me"*
+- 🧩 「用 Tony 的方式想想：我该不该用 AI 写日记」 / *"Think like Tony: should I use AI to write my journal?"*
+
+---
+
 <a name="中文"></a>
 
 ## 中文
 
 ### 这是什么
 
-`tony-skill` 把 **Tony**——一位累计 6000+ 学员、CELTA + TESOL 认证的职业对外汉语教师，同时是 AI 重度 power-user——的**认知操作系统**蒸馏成一个可执行的 Agent Skill。
+`tony-skill` 把 **Tony**——一位拥有 CELTA + TESOL 认证、累计教过数千名学员（作者自述）的职业对外汉语教师，同时是 AI 重度 power-user——的**认知操作系统**蒸馏成一个可执行的 Agent Skill。
 
 它捕获的不是"他说过什么"，而是"他**怎么想、怎么教、怎么用 AI**"：可迁移的心智模型、可复用的教学法、可照搬的方法论。装上它，AI 就会用 Tony 的方式拆解问题、设计中文学习、搭建自进化系统、并以他的 voice 表达。
 
@@ -64,7 +79,7 @@ in Claude Code, Cursor, Codex, and 50+ compatible runtimes.
 
 ```bash
 # 克隆到你的 skills 目录
-git clone https://github.com/<your-name>/tony-skill ~/.claude/skills/tony-skill
+git clone https://github.com/shengdabai/tony-skill ~/.claude/skills/tony-skill
 ```
 
 随后在对话里自然触发即可，例如：
@@ -79,6 +94,8 @@ git clone https://github.com/<your-name>/tony-skill ~/.claude/skills/tony-skill
 ```
 tony-skill/
 ├── SKILL.md                        # 核心：路由 + 心智模型摘要 + voice + 边界 + 研究协议
+├── README.md / LICENSE             # 仓库文档与许可
+├── CONTRIBUTING.md / CHANGELOG.md  # 迁移指南与版本记录
 ├── references/
 │   ├── teaching-method.md          # 思维桥梁教学法全文（四层对照 + 文化纵深五步配方）
 │   ├── ai-method.md                # 「第零阶级」playbook（8 原则 + 多模型编排 + token 经济学）
@@ -86,14 +103,15 @@ tony-skill/
 │   ├── genealogy-and-voice.md      # 思想谱系（225 本知识食谱聚类）+ 7 条 voice 规则
 │   └── research-protocol.md        # Agentic 研究协议 + 诚实边界
 └── examples/
-    ├── teaching-example.md         # 完整备课示例：「给我打电话」教成思维跃迁
-    ├── ai-leverage-example.md      # 自进化系统设计示例：简报系统
-    └── thinking-example.md         # Tony voice 思考示例：该不该用 AI 写日记
+    ├── teaching-example.md             # 老师视角备课：「给我打电话」教成思维跃迁
+    ├── learner-self-study-example.md   # 学习者视角自助：用四层对照攻克「把」字句
+    ├── ai-leverage-example.md          # 自进化系统设计（含一次真实翻车→诊断→修正→落盘）
+    └── thinking-example.md             # Tony voice 思考：该不该用 AI 写日记
 ```
 
 ### 它怎么被造出来的
 
-遵循 Claude 官方 **skill-creator** 规范，借鉴 **nuwa-skill** 的"并行研究 → 三重验证 → 技能构建 → 质量测试"四阶段框架。素材由**多个 AI agent 并行**分析以下私有源蒸馏而成（已严格脱敏，不含任何个人身份信息）：
+遵循 Claude **skill-creator** 的结构规范，借鉴 **nuwa-skill** 的"并行研究 → 三重验证 → 技能构建 → 质量测试"四阶段框架。素材由**多个 AI agent 并行**分析以下私有源蒸馏而成（已移除密钥、私有链接、第三方姓名等直接敏感信息；但作者**有意公开**了自己的职业身份、知识食谱规模等可画像信息，这是一个自觉的隐私权衡，并非"零信息暴露"）：
 
 - 跨会话的 AI 协作记忆与决策记录
 - 225 本 NotebookLM 知识库构成的"知识食谱"（用于反推思想谱系与表达 DNA）
@@ -115,7 +133,7 @@ tony-skill/
 
 ### What it is
 
-`tony-skill` distills the **cognitive operating system** of **Tony** — a career teacher of Chinese as a foreign language (6,000+ students, CELTA + TESOL certified) who is also a heavy AI power-user — into one executable Agent Skill.
+`tony-skill` distills the **cognitive operating system** of **Tony** — a career teacher of Chinese as a foreign language (CELTA + TESOL certified, thousands of students taught, per the author) who is also a heavy AI power-user — into one executable Agent Skill.
 
 It captures not *what he said*, but *how he thinks, teaches, and uses AI*: transferable mental models, a reusable teaching method, and a copy-able methodology. Install it and your AI will dissect problems, design Chinese-learning, build self-evolving systems, and write in Tony's voice.
 
@@ -148,7 +166,7 @@ Plus a global **agentic research protocol**: any present-day fact must be *verif
 **Claude Code**
 
 ```bash
-git clone https://github.com/<your-name>/tony-skill ~/.claude/skills/tony-skill
+git clone https://github.com/shengdabai/tony-skill ~/.claude/skills/tony-skill
 ```
 
 Then trigger naturally in chat, e.g.:
@@ -160,7 +178,7 @@ Then trigger naturally in chat, e.g.:
 
 ### How it was built
 
-Built to Anthropic's official **skill-creator** standard, using **nuwa-skill**'s four-phase framework (parallel research → triple validation → skill construction → quality testing). The source material was distilled by **multiple AI agents working in parallel** over private sources — rigorously de-identified, containing **no personally identifiable information**:
+Built following Anthropic's **skill-creator** structure conventions, using **nuwa-skill**'s four-phase framework (parallel research → triple validation → skill construction → quality testing). The source material was distilled by **multiple AI agents working in parallel** over private sources, with **secrets, private links, and third-party names removed**. (Note: the author *intentionally* discloses his own professional identity and the scale of his knowledge diet — a deliberate privacy trade-off, not a claim of zero information exposure.):
 
 - cross-session AI-collaboration memory and decision logs
 - a "knowledge diet" of 225 NotebookLM notebooks (used to reconstruct intellectual genealogy & expression DNA)
@@ -173,6 +191,16 @@ Every mental model passes a triple test (cross-domain reproduction / generative 
 - The teaching method's **cultural depth must rest on real sources**; inventing a mystical "cultural explanation" is worse than not giving one.
 - The **voice profile is reasoned inference** (reverse-engineered from "what he reads" + real teaching cases); imitate his *hedge-both-sides, be-your-own-judge* stance, don't take sides for him.
 - For present-day facts, **research first** — never let "Tony would probably think…" paper over something that should be checked.
+
+---
+
+## 🛠️ 二次创作 · Fork & Distill Yourself
+
+最自然的 fork 方式是**用同一套方法蒸馏你自己**，做出 `your-name-skill`。
+迁移流程、PII 脱敏清单与诚实边界要求见 **[CONTRIBUTING.md](./CONTRIBUTING.md)**；版本演进见 **[CHANGELOG.md](./CHANGELOG.md)**。
+
+The most natural fork is to **distill yourself** with the same method.
+See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for the migration workflow, PII checklist, and honesty-boundary requirements.
 
 ---
 

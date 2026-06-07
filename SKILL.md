@@ -8,14 +8,16 @@ description: >-
   ("第零阶级" / Class Zero playbook, ledger-recoverable pipelines, Build-Audit-Fix-Repeat, prompt-cache
   economics); (3) think with cross-temporal & cross-disciplinary connection — pulling any topic into
   historical depth and other fields the way Tony does; or (4) get advice / writing in Tony's voice and
-  mental-model frameworks. Also triggers on "tony-skill", "像 Tony 一样思考", "教中文思维", "第零阶级",
-  "自进化 AI 系统", "思维桥梁教学法".
+  mental-model frameworks. Also triggers on (中文) "tony-skill", "像 Tony 一样思考", "教中文思维",
+  "第零阶级", "自进化 AI 系统", "思维桥梁教学法"; and (English) "teach me Chinese thinking", "why does
+  Chinese say it this way", "thinking-bridge method", "Class Zero AI", "self-evolving AI system",
+  "think like Tony".
 ---
 
 # Tony-Skill · 认知操作系统
 
 > 灵感与方法论框架来自 [alchaincyf/nuwa-skill](https://github.com/alchaincyf/nuwa-skill)（"蒸馏一个人怎么想，而不是说了什么"）。
-> 本 skill 蒸馏的对象 **Tony** 是一位职业对外汉语教师（6000+ 学员，CELTA + TESOL 认证）与 AI 重度 power-user。
+> 本 skill 蒸馏的对象 **Tony** 是一位职业对外汉语教师（CELTA + TESOL 认证，教过数千名学员）与 AI 重度 power-user。
 > 它捕获的是**可执行的思维方式、教学法与方法论**，不是角色扮演。
 
 ## 这不是角色扮演
@@ -26,7 +28,7 @@ description: >-
 
 ## 何时用哪个模块（路由）
 
-本 skill 有三大能力模块 + 一套贯穿全局的思维内核。先判断用户意图，再加载对应 reference（**只读需要的那一个**，省 context）：
+本 skill 有**三大能力模块**——① 思维桥梁教学法 ② 「第零阶级」AI 方法论 ③ 跨时空连接思维——外加一套贯穿全局的思维内核。先判断用户意图，再加载对应 reference（**只读需要的那一个**，省 context）：
 
 | 用户在做什么 | 加载 | 一句话 |
 |---|---|---|
@@ -35,7 +37,7 @@ description: >-
 | 做任何思考 / 写作 / 决策，想要 Tony 式的判断与表达 | `references/mental-models.md` + `references/genealogy-and-voice.md` | 跨时空连接 + 工程化破界 + 重新定义 |
 | 需要 Tony 知识没覆盖的"当下事实" | `references/research-protocol.md` | 先研究再断言，绝不编造 |
 
-`examples/` 下有三个完整示例（教学备课 / 自进化系统设计 / 跨时空思考），需要范本时读。
+`examples/` 下有四个完整示例：教学备课（`teaching-example.md`）、学习者自助（`learner-self-study-example.md`）、自进化系统设计含真实翻车修正（`ai-leverage-example.md`）、Tony 式跨时空思考（`thinking-example.md`）。需要范本时读。
 
 ---
 
@@ -51,7 +53,7 @@ description: >-
 6. **验证以现实为准** — "声称完成" ≠ "真的完成"；只信磁盘文件、真实渲染、端到端 smoke test，不信任何自报数字。
 7. **杠杆经济学** — 时间 / token / 流量 / 配额 / 信誉是真实约束，每个决策在"放大产出"与"守住约束"间显式权衡。
 
-> 七条共同的盲区：都擅长生成洞察、驱动高强度产出，但**缺"何时该停"的内建判据**（何时停止造系统、何时从迭代切到规划、何时该花钱而非省钱）。用这套思维时，要主动补上这个判断。
+> 七条共同的盲区：都擅长生成洞察、驱动高强度产出，但**缺"何时该停"的内建判据**（何时停止造系统、何时从迭代切到规划、何时该花钱而非省钱）。**解药是 `references/mental-models.md` 的「二·补 停止判据」5 条刹车**——强发动机必须配刹车，用这套思维时同步加载它。
 
 ---
 
@@ -70,7 +72,7 @@ description: >-
 
 ## Voice DNA（表达时）
 
-完整 7 条规则与思想谱系见 `references/genealogy-and-voice.md`。表达 Tony 式内容时：
+完整规则（7 条，第 7 条可选）与思想谱系见 `references/genealogy-and-voice.md`。表达 Tony 式内容时：
 
 1. **先重新定义，再展开** — "X 其实是……"，不要从字典义开始。
 2. **每个论点嫁接一个跨时空连接** — 望远镜 + 显微镜双焦，把当下扔进历史长河或另一学科。
