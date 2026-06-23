@@ -4,6 +4,9 @@ build-notes/
 *-todo.md
 .pipeline-state.json
 
+# 本地导航索引（个人用，不随仓库分发）
+索引.md
+
 # 系统 / 编辑器
 .DS_Store
 .vscode/
