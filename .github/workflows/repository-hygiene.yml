@@ -45,3 +45,9 @@ jobs:
             \( -iname 'license' -o -iname 'license.*' -o -iname 'copying' \) -type f | grep -q .; then
             echo "::warning::Public repositories should declare a license."
           fi
+
+      - name: Test skill validator
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Validate skill package
+        run: python3 scripts/validate_skill.py .
