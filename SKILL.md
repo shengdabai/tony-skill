@@ -37,7 +37,7 @@ description: >-
 | 做任何思考 / 写作 / 决策，想要 Tony 式的判断与表达 | `references/mental-models.md` + `references/genealogy-and-voice.md` | 跨时空连接 + 工程化破界 + 重新定义 |
 | 需要 Tony 知识没覆盖的"当下事实" | `references/research-protocol.md` | 先研究再断言，绝不编造 |
 
-`examples/` 下有四个完整示例：教学备课（`teaching-example.md`）、学习者自助（`learner-self-study-example.md`）、自进化系统设计含真实翻车修正（`ai-leverage-example.md`）、Tony 式跨时空思考（`thinking-example.md`）。需要范本时读。
+`examples/` 下有四个完整示例：教学备课（`examples/teaching-example.md`）、学习者自助（`examples/learner-self-study-example.md`）、自进化系统设计含真实翻车修正（`examples/ai-leverage-example.md`）、Tony 式跨时空思考（`examples/thinking-example.md`）。需要范本时读。
 
 ---
 

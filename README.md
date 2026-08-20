@@ -36,10 +36,25 @@ This repository is part of a broader AI local-workbench operating model: reusabl
 - `SKILL.md`
 - `examples`
 - `references`
+- `scripts/validate_skill.py` — stdlib-only contract and public-hygiene validator
+- `tests/test_validate_skill.py` — validator regression suite
+- `.github/workflows/repository-hygiene.yml` — CI entry point for tests and validation
 
 ## Quick Start
 
-No universal setup command is declared yet. Start by inspecting the repository map above and the project-specific scripts or docs committed with the code.
+This repository has no runtime dependencies. From the repository root, run:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 scripts/validate_skill.py .
+```
+
+The second command is the fastest local publish check. It validates the `SKILL.md`
+frontmatter contract, routes from `SKILL.md` to `references/` and `examples/`, and
+high-confidence secret hygiene without printing suspected secret values.
+
+The repository-hygiene workflow runs both commands on pull requests and pushes to
+`master`; run them locally as the fastest pre-push check.
 
 ## Operating Notes
 
@@ -47,6 +62,12 @@ No universal setup command is declared yet. Start by inspecting the repository m
 - If a `.env.example` file exists, treat it as documentation only; never commit filled-in `.env` files.
 - Before publishing screenshots, demos, or client examples, remove private names, internal paths, account IDs, and API endpoints.
 - The `Repository Hygiene` workflow is a lightweight guardrail, not a replacement for product-specific tests.
+- The validator intentionally accepts documented placeholders such as
+  `API_KEY=your_api_key_here`; it is not a replacement for secret scanning on a
+  deployment platform or a review of repository history.
+- Generated and dependency directories (for example `.git`, `node_modules`,
+  `.venv`, `dist`, and `coverage`) are ignored to keep the check fast. Do not use
+  those directories to store publishable skill material.
 
 ## Delivery Checklist
 
@@ -212,7 +233,7 @@ Every mental model passes a triple test (cross-domain reproduction / generative 
 
 - **No built-in stop criteria**: the frameworks here excel at generating insight and driving output, but don't tell you *when enough is enough*. Add your own exit conditions when adapting them to loops or automated pipelines.
 - **Token-cache economics are provider-dependent**: the prompt-cache figures in `references/ai-method.md` apply only when your provider supports prompt caching (e.g. Claude, some OpenAI models). Don't assume the numbers hold on every runtime.
-- **No automated CI**: there are no tests validating that routing table entries in `SKILL.md` match actual files in `references/`. If you fork and rename files, update `SKILL.md` manually.
+- **Structural checks are not behavior tests**: CI validates the package contract, routing, and high-confidence secret hygiene, but it does not prove how reliably every Agent runtime will trigger or execute the skill.
 
 ---
 
