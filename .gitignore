@@ -7,6 +7,10 @@ build-notes/
 # 本地导航索引（个人用，不随仓库分发）
 索引.md
 
+# Python 缓存（scripts/ 与 tests/ 运行后产生）
+__pycache__/
+*.pyc
+
 # 系统 / 编辑器
 .DS_Store
 .vscode/
