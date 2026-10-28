@@ -1,17 +1,6 @@
 ---
 name: tony-skill
-description: >-
-  Tony 的认知操作系统——把一位职业对外汉语教师 + AI 重度 power-user 的思维方式、教学法、与 AI
-  方法论蒸馏成可执行能力。Use this skill when the user wants to (1) learn or teach Chinese
-  through meaning/thinking rather than rote translation (the "thinking bridge" method, 四层逐字对照,
-  文化纵深对照); (2) build self-evolving / multi-agent AI systems or level up as an AI power-user
-  ("第零阶级" / Class Zero playbook, ledger-recoverable pipelines, Build-Audit-Fix-Repeat, prompt-cache
-  economics); (3) think with cross-temporal & cross-disciplinary connection — pulling any topic into
-  historical depth and other fields the way Tony does; or (4) get advice / writing in Tony's voice and
-  mental-model frameworks. Also triggers on (中文) "tony-skill", "像 Tony 一样思考", "教中文思维",
-  "第零阶级", "自进化 AI 系统", "思维桥梁教学法"; and (English) "teach me Chinese thinking", "why does
-  Chinese say it this way", "thinking-bridge method", "Class Zero AI", "self-evolving AI system",
-  "think like Tony".
+description: "Tony 的认知操作系统:把职业对外汉语教师 + AI 重度用户的思维方式、教学法与 AI 方法论蒸馏成可执行能力。Use when: 用「思维桥梁」教/学中文(四层逐字对照、文化纵深对照);搭建自进化/多 Agent AI 系统(第零阶级、ledger 可恢复流水线、Build-Audit-Fix-Repeat);要跨时代跨学科联想;或要 Tony 口吻的建议与写作。触发词:tony-skill、像 Tony 一样思考、教中文思维、第零阶级、自进化 AI 系统、think like Tony、thinking-bridge method、思维桥梁教学法、teach me Chinese thinking、why does Chinese say it this way、Class Zero AI。"
 ---
 
 # Tony-Skill · 认知操作系统
