@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from pathlib import Path
 
 MAX_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
 MAX_BODY_LINES = 500
-IGNORED_DIRECTORIES = {".git", ".cache", ".next", ".pytest_cache", ".venv", "__pycache__", "build", "coverage", "dist", "node_modules", "target", "venv"}
+IGNORED_DIRECTORIES = {".git", ".omc", ".claude", ".codex", ".cache", ".next", ".pytest_cache", ".venv", "__pycache__", "build", "coverage", "dist", "node_modules", "target", "venv"}
 REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9_./-])((?:references|examples)/[A-Za-z0-9._/-]+\.md)\b")
 SENSITIVE_FILENAME_RULES = (
     ("SENSITIVE_FILENAME_ENV", re.compile(r"^\.env(?:\.(?!example$)[^/]+)?$", re.IGNORECASE)),
@@ -56,6 +57,8 @@ def parse_frontmatter(skill_path: Path) -> tuple[dict[str, str], int, list[str]]
         lines = skill_path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
         return {}, 0, ["FRONTMATTER_UTF8"]
+    except OSError:
+        return {}, 0, ["FRONTMATTER_READ_ERROR"]
     if not lines or lines[0].strip() != "---":
         return {}, 0, ["FRONTMATTER_REQUIRED"]
     end = next((index for index, value in enumerate(lines[1:], 1) if value.strip() == "---"), None)
@@ -95,10 +98,22 @@ def is_placeholder(value: str) -> bool:
 
 
 def iter_repository_files(root: Path):
-    for path in root.rglob("*"):
-        if path.is_dir() or any(part in IGNORED_DIRECTORIES for part in path.relative_to(root).parts):
-            continue
-        yield path
+    for directory, subdirectories, filenames in os.walk(root, followlinks=False):
+        current = Path(directory)
+        # Prune before traversal, and yield links for diagnostics without following them.
+        kept = []
+        for name in subdirectories:
+            if name in IGNORED_DIRECTORIES:
+                continue
+            path = current / name
+            if path.is_symlink():
+                yield path
+            else:
+                kept.append(name)
+        subdirectories[:] = kept
+        for name in filenames:
+            if name not in IGNORED_DIRECTORIES:
+                yield current / name
 
 
 def validate_frontmatter(root: Path, errors: list[str]) -> None:
@@ -134,12 +149,20 @@ def validate_references(root: Path, errors: list[str]) -> None:
     skill_path = root / "SKILL.md"
     if not skill_path.is_file():
         return
-    text = skill_path.read_text(encoding="utf-8")
+    try:
+        text = skill_path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        # Frontmatter validation already reports unreadable SKILL.md files.
+        return
     mentioned: set[str] = set()
     for match in REFERENCE_PATTERN.finditer(text):
         relative = Path(match.group(1))
         line = text.count("\n", 0, match.start()) + 1
-        candidate = (root / relative).resolve()
+        try:
+            candidate = (root / relative).resolve()
+        except (OSError, RuntimeError):
+            add_error(errors, root, skill_path, line, "REFERENCE_PATH_INVALID")
+            continue
         try:
             candidate.relative_to(root.resolve())
         except ValueError:
@@ -150,36 +173,42 @@ def validate_references(root: Path, errors: list[str]) -> None:
             add_error(errors, root, skill_path, line, "REFERENCE_PATH_MISSING")
     for directory_name, orphan_rule in (("references", "REFERENCE_ORPHANED"), ("examples", "EXAMPLE_ORPHANED")):
         directory = root / directory_name
-        if directory.is_dir():
-            for document in sorted(directory.rglob("*.md")):
+        if directory.is_dir() and not directory.is_symlink():
+            for document in sorted(path for path in iter_repository_files(directory) if path.suffix == ".md"):
                 if document.relative_to(root).as_posix() not in mentioned:
                     add_error(errors, root, document, 1, orphan_rule)
 
 
 def validate_sensitive_content(root: Path, errors: list[str]) -> None:
     for path in iter_repository_files(root):
-        for rule, pattern in SENSITIVE_FILENAME_RULES:
-            if pattern.search(path.name):
-                add_error(errors, root, path, 1, rule)
-                break
+        if path.is_symlink():
+            add_error(errors, root, path, 1, "SYMLINK_NOT_ALLOWED")
+            continue
+        if not path.is_file():
+            add_error(errors, root, path, 1, "NON_REGULAR_FILE")
+            continue
+        sensitive_rule = next((rule for rule, pattern in SENSITIVE_FILENAME_RULES if pattern.search(path.name)), None)
+        if sensitive_rule is not None:
+            add_error(errors, root, path, 1, sensitive_rule)
+            # The filename is sufficient evidence; never open credential files.
+            continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (UnicodeDecodeError, OSError):
             continue
         for line_number, line in enumerate(lines, 1):
             for rule, pattern in SECRET_PATTERNS:
-                match = pattern.search(line)
-                if not match:
-                    continue
-                value = match.group(1) if rule == "SECRET_ASSIGNED_VALUE" else match.group(0)
-                if not is_placeholder(value):
-                    add_error(errors, root, path, line_number, rule)
+                for match in pattern.finditer(line):
+                    value = match.group(1) if rule == "SECRET_ASSIGNED_VALUE" else match.group(0)
+                    if not is_placeholder(value):
+                        add_error(errors, root, path, line_number, rule)
 
 
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
-    validate_frontmatter(root, errors)
-    validate_references(root, errors)
+    if not (root / "SKILL.md").is_symlink():
+        validate_frontmatter(root, errors)
+        validate_references(root, errors)
     validate_sensitive_content(root, errors)
     return sorted(set(errors))
 

@@ -65,9 +65,16 @@ The repository-hygiene workflow runs both commands on pull requests and pushes t
 - The validator intentionally accepts documented placeholders such as
   `API_KEY=your_api_key_here`; it is not a replacement for secret scanning on a
   deployment platform or a review of repository history.
-- Generated and dependency directories (for example `.git`, `node_modules`,
-  `.venv`, `dist`, and `coverage`) are ignored to keep the check fast. Do not use
+- Generated, dependency and local tool-state directories (for example `.git`,
+  `node_modules`, `.venv`, `dist`, `coverage`, `.omc`, `.claude` and `.codex`) are ignored to keep the check fast. Do not use
   those directories to store publishable skill material.
+- The validator rejects symbolic links and non-regular files (such as named
+  pipes). Keep skill material as regular files inside the repository. Sensitive
+  filenames are reported without opening their contents; diagnostics include
+  only the relative path, line number, and rule, never suspected secret values.
+- Invalid UTF-8 or unreadable `SKILL.md` files fail with a diagnostic instead of
+  a traceback. Secret checks examine every match on a line, so an allowed
+  placeholder cannot hide a later suspicious value on that line.
 
 ## Delivery Checklist
 

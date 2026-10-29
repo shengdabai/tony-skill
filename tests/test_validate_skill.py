@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -131,6 +133,131 @@ class SkillValidatorTests(unittest.TestCase):
         root = self.make_repository()
         (root / "docs.md").write_text("API_KEY=your_api_key_here\nTOKEN=<replace-me>\n", encoding="utf-8")
         self.assertEqual(validate_skill.validate(root), [])
+
+    def test_invalid_utf8_skill_fails_without_traceback(self) -> None:
+        root = self.make_repository()
+        (root / "SKILL.md").write_bytes(b"---\nname: valid-skill\n\xff\n---\n")
+        result = subprocess.run(
+            [sys.executable, str(REPOSITORY_ROOT / "scripts" / "validate_skill.py"), str(root)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("SKILL.md:1:FRONTMATTER_UTF8", result.stdout)
+        self.assertEqual(result.stderr, "")
+
+    def test_unreadable_skill_reports_error(self) -> None:
+        root = self.make_repository()
+        original_read = Path.read_text
+
+        def read_text(path, *args, **kwargs):
+            if path == root / "SKILL.md":
+                raise PermissionError("unreadable fixture")
+            return original_read(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", read_text):
+            self.assertIn("FRONTMATTER_READ_ERROR", self.rules(root))
+
+    def test_symlinks_are_rejected_without_reading_targets(self) -> None:
+        for name, target_kind in (("linked.md", "file"), ("SKILL.md", "file"), ("references", "directory")):
+            with self.subTest(name=name):
+                root = self.make_repository()
+                outside = self.make_repository()
+                target = outside if target_kind == "directory" else outside / "SKILL.md"
+                link = root / name
+                if link.is_file():
+                    link.unlink()
+                elif link.is_dir():
+                    # Keep existing fixtures, replacing only the directory entry.
+                    link.rename(root / "original-references")
+                link.symlink_to(target, target_is_directory=target_kind == "directory")
+                original_read = Path.read_text
+                reads = []
+
+                def read_text(path, *args, **kwargs):
+                    reads.append(path)
+                    return original_read(path, *args, **kwargs)
+
+                with mock.patch.object(Path, "read_text", read_text):
+                    errors = validate_skill.validate(root)
+                self.assertIn(f"{name}:1:SYMLINK_NOT_ALLOWED", errors)
+                self.assertFalse(any(path.resolve().is_relative_to(outside) for path in reads))
+
+    def test_placeholder_does_not_hide_later_assignment_on_same_line(self) -> None:
+        root = self.make_repository()
+        value = "-".join(("live", "value", "123"))
+        name = "to" + "ken"
+        (root / "notes.md").write_text(f"{name}=your_value_here; {name}={value}\n", encoding="utf-8")
+        self.assertIn("notes.md:1:SECRET_ASSIGNED_VALUE", validate_skill.validate(root))
+
+    def test_placeholder_does_not_hide_later_provider_token_on_same_line(self) -> None:
+        root = self.make_repository()
+        prefix = "gh" + "p_"
+        (root / "notes.md").write_text(f"{prefix}{'x' * 24} {prefix}{'A' * 24}\n", encoding="utf-8")
+        self.assertIn("notes.md:1:SECRET_GITHUB_TOKEN", validate_skill.validate(root))
+
+    def test_sensitive_filenames_are_flagged_without_reading_contents(self) -> None:
+        root = self.make_repository()
+        sensitive = root / "credentials.json"
+        sensitive.write_text("fixture only\n", encoding="utf-8")
+        original_read = Path.read_text
+        reads = []
+
+        def read_text(path, *args, **kwargs):
+            reads.append(path)
+            return original_read(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", read_text):
+            self.assertIn("SENSITIVE_FILENAME_AUTH", self.rules(root))
+        self.assertNotIn(sensitive, reads)
+
+    def test_broken_and_cyclic_symlinks_are_rejected(self) -> None:
+        root = self.make_repository(body="Use references/guide.md and references/loop.md.")
+        (root / "references" / "loop.md").symlink_to("loop.md")
+        (root / "broken.md").symlink_to("missing.md")
+        errors = validate_skill.validate(root)
+        self.assertIn("references/loop.md:1:SYMLINK_NOT_ALLOWED", errors)
+        self.assertIn("broken.md:1:SYMLINK_NOT_ALLOWED", errors)
+        rules = {entry.rsplit(":", 1)[-1] for entry in errors}
+        self.assertTrue({"REFERENCE_PATH_INVALID", "REFERENCE_PATH_MISSING"} & rules)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "named pipes require POSIX")
+    def test_named_pipe_is_rejected_without_opening(self) -> None:
+        root = self.make_repository()
+        pipe = root / "stream.md"
+        os.mkfifo(pipe)
+        original_read = Path.read_text
+
+        def read_text(path, *args, **kwargs):
+            if path == pipe:
+                self.fail("validator attempted to open a named pipe")
+            return original_read(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", read_text):
+            self.assertIn("stream.md:1:NON_REGULAR_FILE", validate_skill.validate(root))
+
+    def test_local_tool_state_symlink_is_ignored(self) -> None:
+        # Local agent hooks keep `.omc/state -> state.nosync`; that is not publishable skill material.
+        root = self.make_repository()
+        (root / ".omc").mkdir()
+        (root / ".omc" / "state.nosync").mkdir()
+        (root / ".omc" / "state").symlink_to("state.nosync")
+        self.assertEqual(validate_skill.validate(root), [])
+
+    def test_ignored_directories_are_not_traversed(self) -> None:
+        root = self.make_repository()
+        ignored = root / "node_modules"
+        ignored.mkdir()
+        (ignored / "credentials.json").write_text("fixture only\n", encoding="utf-8")
+        original_scandir = os.scandir
+
+        def scandir(path):
+            self.assertNotEqual(Path(path), ignored)
+            return original_scandir(path)
+
+        with mock.patch.object(os, "scandir", scandir):
+            self.assertEqual(validate_skill.validate(root), [])
 
 
 if __name__ == "__main__":
