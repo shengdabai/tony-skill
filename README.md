@@ -63,8 +63,11 @@ The repository-hygiene workflow runs both commands on pull requests and pushes t
 - Before publishing screenshots, demos, or client examples, remove private names, internal paths, account IDs, and API endpoints.
 - The `Repository Hygiene` workflow is a lightweight guardrail, not a replacement for product-specific tests.
 - The validator intentionally accepts documented placeholders such as
-  `API_KEY=your_api_key_here`; it is not a replacement for secret scanning on a
-  deployment platform or a review of repository history.
+  `API_KEY=your_api_key_here`. A placeholder must match the entire value;
+  fragments such as `test` inside a token do not exempt it. Provider-shaped
+  tokens are exempt only when the payload consists entirely of `x` characters.
+  This check is not a replacement for secret scanning on a deployment platform
+  or a review of repository history.
 - Generated, dependency and local tool-state directories (for example `.git`,
   `node_modules`, `.venv`, `dist`, `coverage`, `.omc`, `.claude` and `.codex`) are ignored to keep the check fast. Do not use
   those directories to store publishable skill material.
@@ -73,8 +76,14 @@ The repository-hygiene workflow runs both commands on pull requests and pushes t
   filenames are reported without opening their contents; diagnostics include
   only the relative path, line number, and rule, never suspected secret values.
 - Invalid UTF-8 or unreadable `SKILL.md` files fail with a diagnostic instead of
-  a traceback. Secret checks examine every match on a line, so an allowed
-  placeholder cannot hide a later suspicious value on that line.
+  a traceback, including failures on later reads. Unreadable files and directory
+  traversal failures also fail validation; exception details are not printed.
+- Secret checks examine every match on a line, including JSON field names,
+  quoted values containing spaces, and private-key headers in documents.
+  Credential filenames with backup suffixes are rejected without being opened.
+  An allowed placeholder cannot hide a later suspicious value on the same line.
+  Non-UTF-8 content outside `SKILL.md` is skipped, so binary and encoded content
+  requires a separate review.
 
 ## Delivery Checklist
 
