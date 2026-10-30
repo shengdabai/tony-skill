@@ -4,27 +4,30 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from pathlib import Path
 
 MAX_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
 MAX_BODY_LINES = 500
-IGNORED_DIRECTORIES = {".git", ".cache", ".next", ".pytest_cache", ".venv", "__pycache__", "build", "coverage", "dist", "node_modules", "target", "venv"}
+IGNORED_DIRECTORIES = {".git", ".omc", ".claude", ".codex", ".cache", ".next", ".pytest_cache", ".venv", "__pycache__", "build", "coverage", "dist", "node_modules", "target", "venv"}
 REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9_./-])((?:references|examples)/[A-Za-z0-9._/-]+\.md)\b")
+CREDENTIAL_FILE_SUFFIXES = r"(?:[._-](?:json|ya?ml|toml|ini|cfg|conf|txt|csv|xml|db|sqlite3?|bak|backup|old|orig|save))*"
 SENSITIVE_FILENAME_RULES = (
     ("SENSITIVE_FILENAME_ENV", re.compile(r"^\.env(?:\.(?!example$)[^/]+)?$", re.IGNORECASE)),
     (
         "SENSITIVE_FILENAME_AUTH",
         re.compile(
-            r"^(?:auth\.json|credentials\.(?:json|ya?ml)|service[-_]account\.json)$",
+            rf"^(?:auth\.json|credentials{CREDENTIAL_FILE_SUFFIXES}|service[-_]account\.json)$",
             re.IGNORECASE,
         ),
     ),
-    ("SENSITIVE_FILENAME_KEY", re.compile(r"(?:^id_(?:rsa|dsa|ecdsa|ed25519)$|\.(?:key|pem|p12|pfx)$)", re.IGNORECASE)),
+    ("SENSITIVE_FILENAME_KEY", re.compile(rf"(?:^id_(?:rsa|dsa|ecdsa|ed25519){CREDENTIAL_FILE_SUFFIXES}$|\.(?:key|pem|p12|pfx)$)", re.IGNORECASE)),
     ("SENSITIVE_FILENAME_CONFIG", re.compile(r"^(?:\.npmrc|secrets?\.[^/]+)$", re.IGNORECASE)),
 )
 SECRET_PATTERNS = (
+    ("SECRET_PRIVATE_KEY", re.compile(r"-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----")),
     ("SECRET_GITHUB_TOKEN", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
     ("SECRET_OPENAI_KEY", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b")),
     ("SECRET_AWS_ACCESS_KEY", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
@@ -32,12 +35,22 @@ SECRET_PATTERNS = (
         "SECRET_ASSIGNED_VALUE",
         re.compile(
             r"(?i)\b(?:api[_ -]?key|access[_ -]?token|client[_ -]?secret|"
-            r"db[_ -]?password|private[_ -]?key|secret|token|password)\b\s*[:=]\s*"
-            r"(?:['\"])?([^\s'\"`#,;}]+)"
+            r"db[_ -]?password|private[_ -]?key|secret|token|password)\b['\"]?\s*[:=]\s*"
+            r"(?P<value>\"[^\"\r\n]*\"|'[^'\r\n]*'|"
+            r"(?:\$\{\{[^}\r\n]*\}\}|\{\{[^}\r\n]*\}\}|<[^>\r\n]*>)[^\s'\"`#,;]*|"
+            r"['\"]?[^\s'\"`#,;]+)"
         ),
     ),
 )
-PLACEHOLDER_MARKERS = ("<", "{{", "${", "changeme", "dummy", "example", "fake", "not-a-real", "placeholder", "redacted", "replace", "sample", "test", "todo", "your_", "your-", "xxx")
+PLACEHOLDER_PATTERN = re.compile(
+    r"(?:<[^<>\r\n]+>|\$\{\{[^}\r\n]*\}\}|\$\{[^{}\r\n]+\}|\{\{[^{}\r\n]+\}\}|x{3,}|"
+    r"(?:changeme|dummy|example|fake|not-a-real|placeholder|redacted|replace|sample|test|todo|your)"
+    r"(?:[_-][a-z0-9]+)*)",
+    re.IGNORECASE,
+)
+PROVIDER_PLACEHOLDER_PATTERN = re.compile(r"(?:gh[pousr]_|sk-(?:proj-)?|AKIA|ASIA)[xX]{16,}")
+# Accept the published AWS example exactly, not arbitrary keys containing EXAMPLE.
+PROVIDER_DOCUMENTATION_EXAMPLES = {"AKIA" + "IOSFODNN7EXAMPLE"}
 
 
 def display_path(root: Path, path: Path) -> str:
@@ -56,6 +69,8 @@ def parse_frontmatter(skill_path: Path) -> tuple[dict[str, str], int, list[str]]
         lines = skill_path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
         return {}, 0, ["FRONTMATTER_UTF8"]
+    except OSError:
+        return {}, 0, ["FRONTMATTER_READ_ERROR"]
     if not lines or lines[0].strip() != "---":
         return {}, 0, ["FRONTMATTER_REQUIRED"]
     end = next((index for index, value in enumerate(lines[1:], 1) if value.strip() == "---"), None)
@@ -89,16 +104,38 @@ def parse_frontmatter(skill_path: Path) -> tuple[dict[str, str], int, list[str]]
     return values, end + 1, errors
 
 
-def is_placeholder(value: str) -> bool:
-    normalized = value.strip().lower()
-    return not normalized or any(marker in normalized for marker in PLACEHOLDER_MARKERS)
+def is_placeholder(value: str, *, provider: bool = False) -> bool:
+    normalized = value.strip()
+    if len(normalized) >= 2 and normalized[0] in "\"'" and normalized[-1] == normalized[0]:
+        normalized = normalized[1:-1].strip()
+    if normalized in PROVIDER_DOCUMENTATION_EXAMPLES or PROVIDER_PLACEHOLDER_PATTERN.fullmatch(normalized):
+        return True
+    if provider:
+        return False
+    return not normalized or PLACEHOLDER_PATTERN.fullmatch(normalized) is not None
 
 
-def iter_repository_files(root: Path):
-    for path in root.rglob("*"):
-        if path.is_dir() or any(part in IGNORED_DIRECTORIES for part in path.relative_to(root).parts):
-            continue
-        yield path
+def iter_repository_files(root: Path, errors: list[str], *, repository_root: Path | None = None):
+    def on_error(error: OSError) -> None:
+        path = Path(error.filename) if error.filename else root
+        add_error(errors, repository_root or root, path, 1, "DIRECTORY_READ_ERROR")
+
+    for directory, subdirectories, filenames in os.walk(root, followlinks=False, onerror=on_error):
+        current = Path(directory)
+        # Prune before traversal, and yield links for diagnostics without following them.
+        kept = []
+        for name in subdirectories:
+            if name in IGNORED_DIRECTORIES:
+                continue
+            path = current / name
+            if path.is_symlink():
+                yield path
+            else:
+                kept.append(name)
+        subdirectories[:] = kept
+        for name in filenames:
+            if name not in IGNORED_DIRECTORIES:
+                yield current / name
 
 
 def validate_frontmatter(root: Path, errors: list[str]) -> None:
@@ -125,7 +162,14 @@ def validate_frontmatter(root: Path, errors: list[str]) -> None:
         add_error(errors, root, skill_path, 1, "DESCRIPTION_REQUIRED")
     if len(description) > MAX_DESCRIPTION_LENGTH:
         add_error(errors, root, skill_path, 1, "DESCRIPTION_TOO_LONG")
-    lines = skill_path.read_text(encoding="utf-8").splitlines()
+    try:
+        lines = skill_path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        add_error(errors, root, skill_path, 1, "FRONTMATTER_UTF8")
+        return
+    except OSError:
+        add_error(errors, root, skill_path, 1, "FRONTMATTER_READ_ERROR")
+        return
     if len(lines[body_start:]) >= MAX_BODY_LINES:
         add_error(errors, root, skill_path, body_start + MAX_BODY_LINES, "BODY_TOO_LONG")
 
@@ -134,12 +178,23 @@ def validate_references(root: Path, errors: list[str]) -> None:
     skill_path = root / "SKILL.md"
     if not skill_path.is_file():
         return
-    text = skill_path.read_text(encoding="utf-8")
+    try:
+        text = skill_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        add_error(errors, root, skill_path, 1, "FRONTMATTER_UTF8")
+        return
+    except OSError:
+        add_error(errors, root, skill_path, 1, "FRONTMATTER_READ_ERROR")
+        return
     mentioned: set[str] = set()
     for match in REFERENCE_PATTERN.finditer(text):
         relative = Path(match.group(1))
         line = text.count("\n", 0, match.start()) + 1
-        candidate = (root / relative).resolve()
+        try:
+            candidate = (root / relative).resolve()
+        except (OSError, RuntimeError):
+            add_error(errors, root, skill_path, line, "REFERENCE_PATH_INVALID")
+            continue
         try:
             candidate.relative_to(root.resolve())
         except ValueError:
@@ -150,36 +205,46 @@ def validate_references(root: Path, errors: list[str]) -> None:
             add_error(errors, root, skill_path, line, "REFERENCE_PATH_MISSING")
     for directory_name, orphan_rule in (("references", "REFERENCE_ORPHANED"), ("examples", "EXAMPLE_ORPHANED")):
         directory = root / directory_name
-        if directory.is_dir():
-            for document in sorted(directory.rglob("*.md")):
+        if directory.is_dir() and not directory.is_symlink():
+            for document in sorted(path for path in iter_repository_files(directory, errors, repository_root=root) if path.suffix == ".md"):
                 if document.relative_to(root).as_posix() not in mentioned:
                     add_error(errors, root, document, 1, orphan_rule)
 
 
 def validate_sensitive_content(root: Path, errors: list[str]) -> None:
-    for path in iter_repository_files(root):
-        for rule, pattern in SENSITIVE_FILENAME_RULES:
-            if pattern.search(path.name):
-                add_error(errors, root, path, 1, rule)
-                break
+    for path in iter_repository_files(root, errors):
+        if path.is_symlink():
+            add_error(errors, root, path, 1, "SYMLINK_NOT_ALLOWED")
+            continue
+        if not path.is_file():
+            add_error(errors, root, path, 1, "NON_REGULAR_FILE")
+            continue
+        sensitive_rule = next((rule for rule, pattern in SENSITIVE_FILENAME_RULES if pattern.search(path.name)), None)
+        if sensitive_rule is not None:
+            add_error(errors, root, path, 1, sensitive_rule)
+            # The filename is sufficient evidence; never open credential files.
+            continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
-        except (UnicodeDecodeError, OSError):
+        except UnicodeDecodeError:
+            # Binary assets are outside this lightweight text scanner's coverage.
+            continue
+        except OSError:
+            add_error(errors, root, path, 1, "FILE_READ_ERROR")
             continue
         for line_number, line in enumerate(lines, 1):
             for rule, pattern in SECRET_PATTERNS:
-                match = pattern.search(line)
-                if not match:
-                    continue
-                value = match.group(1) if rule == "SECRET_ASSIGNED_VALUE" else match.group(0)
-                if not is_placeholder(value):
-                    add_error(errors, root, path, line_number, rule)
+                for match in pattern.finditer(line):
+                    value = match.group("value") if rule == "SECRET_ASSIGNED_VALUE" else match.group(0)
+                    if not is_placeholder(value, provider=rule != "SECRET_ASSIGNED_VALUE"):
+                        add_error(errors, root, path, line_number, rule)
 
 
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
-    validate_frontmatter(root, errors)
-    validate_references(root, errors)
+    if not (root / "SKILL.md").is_symlink():
+        validate_frontmatter(root, errors)
+        validate_references(root, errors)
     validate_sensitive_content(root, errors)
     return sorted(set(errors))
 
