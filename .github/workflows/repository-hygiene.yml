@@ -10,12 +10,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   hygiene:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check repository guardrails
         shell: bash
@@ -45,6 +50,11 @@ jobs:
             \( -iname 'license' -o -iname 'license.*' -o -iname 'copying' \) -type f | grep -q .; then
             echo "::warning::Public repositories should declare a license."
           fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
 
       - name: Test skill validator
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
